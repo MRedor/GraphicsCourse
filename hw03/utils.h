@@ -27,6 +27,7 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/rotate_vector.hpp>
 
 void load_texture(GLuint & texture, char* filename) {
     int width, height, channels;
@@ -46,3 +47,15 @@ void load_texture(GLuint & texture, char* filename) {
 
     stbi_image_free(image);
 }
+
+const float PI_ = 3.14159265358979323846;
+const float ALPHA = - 3.14159265358979323846 / 2;
+const float TAU = 2 * PI_;
+
+const glm::vec3 x_basic = glm::vec3(1, 0, 0);
+const glm::vec3 y_basic = glm::vec3(0, 1, 0);
+const glm::vec3 z_basic = glm::vec3(0, 0, 1);
+
+const glm::vec3 x_basic_neg = glm::vec3(-1, 0, 0);
+const glm::vec3 y_basic_neg = glm::vec3(0, -1, 0);
+const glm::vec3 z_basic_neg = glm::vec3(0, 0, -1);

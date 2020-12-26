@@ -60,13 +60,13 @@ render_target_t::~render_target_t() {
 class Car {
 public:
     Car() {
-        model = create_model("../assets/car.obj");
+        model = create_model("../assets/car2.obj");
         render_target_t rt(512, 512);
         shader = new shader_t("model.vs", "model.fs");
-        load_texture(texture, "../assets/grass.jpg");
+        load_texture(texture, "../assets/grey.jpg");
     }
 
-    void Draw(glm::mat<4, 4, float, glm::packed_highp> mvp) {
+    void Draw() {
         //shader->use();
         //shader->set_uniform("u_model", glm::value_ptr(model));
         //shader->set_uniform("u_mvp", glm::value_ptr(mvp));
@@ -77,6 +77,10 @@ public:
         glBindTexture(GL_TEXTURE_2D, texture);
         model->draw();
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
+
+    glm::vec3 center() {
+        return glm::vec3((model->max_x + model->min_x) / 2,(model->max_y + model->min_y) / 2,(model->max_z + model->min_z) / 2);
     }
 
     GLuint texture;

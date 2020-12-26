@@ -22,6 +22,7 @@ public:
     ~obj_model_t() = default;
 
     void draw() override;
+
 private:
     int num_vertices_ = 0;
     GLuint vao_ = 0;
@@ -64,6 +65,13 @@ obj_model_t::obj_model_t(char const * filename) {
             float data[] = {vx, vy, vz};
             //buffer_data.insert(buffer_data.end(), data, data + 6);
             buffer_data.insert(buffer_data.end(), data, data + 3);
+
+            min_x = std::min(min_x, vx);
+            min_y = std::min(min_y, vy);
+            min_z = std::min(min_z, vz);
+            max_x = std::max(max_x, vx);
+            max_y = std::max(max_y, vy);
+            max_z = std::min(max_z, vz);
         }
     }
 

@@ -2,9 +2,6 @@
 
 #include "utils.h"
 
-const float PI_ = 3.14159265358979323846;
-const float TAU = 2 * PI_;
-
 class HeightsMap {
 public:
     HeightsMap(char* filename) {
@@ -81,8 +78,12 @@ public:
 
     shader_t* shader;
 
-private:
-    glm::vec3 vertex(int i, int j) {
+//private:
+    glm::vec3 vertex(glm::vec2 position) {
+        return vertex(position[0], position[1]);
+    }
+
+    glm::vec3 vertex(float i, float j) {
         auto c = i * TAU / (numc - 1);
         auto t = j * TAU / (numt - 1) - PI_;
 
@@ -95,11 +96,11 @@ private:
         return {x, y, z};
     }
 
-    float height(int i, int j) {
-        return heights.Point(float(i) / numc, float(j) / numt) * r;
+    float height(float i, float j) {
+        return heights.Point(i / numc, j / numt) * r;
     }
 
-    int numc = 100, numt = 1000;
+    int numc = 500, numt = 500;
     int R;
     int r;
     HeightsMap heights = HeightsMap("../assets/height-map.png");
@@ -107,4 +108,51 @@ private:
     GLuint vbo, vao, ebo;
     GLuint texture;
     int num_vertices_;
+
+    glm::mat4 get_translation_matrix(glm::vec2 position) {
+        auto r0 = glm::rotate(position[0] * TAU / (numc - 1), glm::vec3(0, 0, 1));
+        auto r1 = glm::rotate(-(position[1] * TAU / (numt - 1) - PI_), glm::vec3(0, 1, 0));
+
+        return r0 * glm::translate(glm::vec3(R * 0.8, 0, 0)) *
+               r1 * glm::translate(glm::vec3(r * 0.8 + height(position[0], position[1]), 0, 0));
+    }
+
+
+    glm::vec3 get_normal(glm::vec3&& v1, glm::vec3&& v2) {
+        return cross(v2, v1);
+    }
+
+    glm::vec3 get_normal(float i, float j) {
+        auto v = vertex(i, j);
+
+        int i1 = i <= 0 ? numc - 2 : i - 1;
+        int i2 = i >= numc - 1 ? 1 : i + 1;
+        int j1 = j <= 0 ? numt - 2 : j - 1;
+        int j2 = j >= numt - 1 ? 1 : j + 1;
+
+        glm::vec3 a, b, c, d;
+        a = vertex(i2, j);
+        b = vertex(i, j1);
+        c = vertex(i1, j);
+        d = vertex(i, j2);
+
+        auto n1 = get_normal(
+                { a[0] - v[0], a[1] - v[1], a[2] - v[2] },
+                { b[0] - v[0], b[1] - v[1], b[2] - v[2] }
+        );
+        auto n2 = get_normal(
+                { b[0] - v[0], b[1] - v[1], b[2] - v[2] },
+                { c[0] - v[0], c[1] - v[1], c[2] - v[2] }
+        );
+        auto n3 = get_normal(
+                { c[0] - v[0], c[1] - v[1], c[2] - v[2] },
+                { d[0] - v[0], d[1] - v[1], d[2] - v[2] }
+        );
+        auto n4 = get_normal(
+                { d[0] - v[0], d[1] - v[1], d[2] - v[2] },
+                { a[0] - v[0], a[1] - v[1], a[2] - v[2] }
+        );
+
+        return normalize(n1 + n2 + n3 + n4);
+    }
 };

@@ -22,6 +22,49 @@ void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
     zoom = zoom * pow(0.1, yoffset);
 }
 
+float car_rotation = 0;
+glm::vec2 car_position = glm::vec2(50, 50);
+glm::vec2 car_direction = glm::vec2(1, 0);
+
+void move() {
+    car_position -= car_direction;
+
+    if (car_position[0] >= 500) {
+        car_position[0] = 0;
+    }
+    if (car_position[1] >= 500) {
+        car_position[1] = 0;
+    }
+    if (car_position[0] < 0) {
+        car_position[0] = 500;
+    }
+    if (car_position[1] < 0) {
+        car_position[1] = 500;
+    }
+}
+
+void keyboard_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
+    if (key == GLFW_KEY_UP) {
+        move();
+    }
+
+    if (key == GLFW_KEY_LEFT) {
+        car_rotation += 0.1;
+    }
+    if (key == GLFW_KEY_RIGHT) {
+        car_rotation -= 0.1;
+    }
+
+    if (abs(car_rotation) > 2 * PI_) {
+        car_rotation = 0;
+    }
+    car_direction = glm::vec2(cos(car_rotation), sin(car_rotation));
+}
+
+glm::vec2 direction() {
+    return glm::normalize(car_direction);
+}
+
 int main(int, char **) {
     // Use GLFW to create a simple window
     glfwSetErrorCallback(glfw_error_callback);
@@ -42,7 +85,8 @@ int main(int, char **) {
     }
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1); // Enable vsync
-    glfwSetScrollCallback(window, scroll_callback);
+    glfwSetKeyCallback(window, keyboard_callback);
+    //glfwSetScrollCallback(window, scroll_callback);
 
     // tell GLFW to capture our mouse
     // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -83,12 +127,6 @@ int main(int, char **) {
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-
-        // GUI
-        ImGui::Begin("");
-        static float refraction = 1;
-        ImGui::SliderFloat("refraction", &refraction, 1, 2.5);
-        ImGui::End();
         // Generate gui render commands
         ImGui::Render();
 
@@ -103,34 +141,55 @@ int main(int, char **) {
         auto camera = glm::vec3(glm::scale(rotation, glm::vec3(zoom)) * glm::vec4(0, 5, 5, 0));
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         {
-            auto model = glm::translate(
-                    glm::scale(glm::identity<glm::mat4>(), glm::vec3(0.1, 0.1, 0.1)),
-                    glm::vec3(0, 0.2, 0)
-            );
-            auto view = glm::lookAt<float>(
-                    camera,
-                    glm::vec3(0, 0, 0),
-                    glm::vec3(rotation * glm::vec4(0, 1, 0, 1))
-            );
-            auto projection = glm::perspective(glm::radians(90.0f), (float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f,
-                                               100.0f);
-            auto mvp = projection * view * model;
-
-            car.shader->use();
-            car.shader->set_uniform("u_model", glm::value_ptr(model));
-            car.shader->set_uniform("u_mvp", glm::value_ptr(mvp));
-            //car.Draw(mvp);
-
             skybox.Draw(camera, rotation);
+
+            auto model_torus = glm::scale(glm::vec3(0.8, 0.8, 0.8));
+            auto model_car_basic = glm::rotate(ALPHA, z_basic) * glm::rotate(ALPHA, x_basic) * glm::rotate(PI_, z_basic) * glm::scale(glm::vec3(0.008, 0.008, 0.008));
+
+            auto translation = torus.get_translation_matrix(car_position);
+            auto model_camera = translation * glm::rotate(car_rotation, x_basic) * model_car_basic;
+            glm::vec3 camera = glm::vec3(translation * glm::vec4(3, direction().x, direction().y, 1));
+            auto view = glm::lookAt(
+                    camera,
+                    glm::vec3(translation * glm::vec4(0, 0, 0, 1)),
+                    glm::vec3(model_camera * glm::vec4(-1, 0, 0, 0))
+            );
+
+            auto projection = glm::perspective(glm::radians(90.0f), (float) display_w / (float) display_h, 0.1f,100.0f);
 
             glActiveTexture(GL_TEXTURE0 + texture_torus);
             glBindTexture(GL_TEXTURE_2D, texture_torus);
             torus.shader->use();
-            torus.shader->set_uniform("model", glm::value_ptr(model));
+            torus.shader->set_uniform("model", glm::value_ptr(model_torus));
             torus.shader->set_uniform("view", glm::value_ptr(view));
             torus.shader->set_uniform("projection", glm::value_ptr(projection));
             torus.shader->set_uniform("tex", (int) texture_torus);
             torus.Draw();
+
+//--------------------
+            auto normal = glm::orientation(glm::vec3(model_torus * glm::vec4(torus.get_normal(car_position[0], car_position[1]), 1)), x_basic);
+            glm::vec3 new_x = normalize(glm::vec3(normal * glm::vec4(1, 0, 0, 0)));
+            glm::vec3 new_z = normalize(glm::vec3(normal * glm::vec4(0, 0, 1, 0)));
+            glm::vec3 torus_dir_x = normalize(torus.vertex(car_position[0] + 1, car_position[1]) - torus.vertex(car_position[0], car_position[1]));
+            glm::vec3 torus_dir_y = normalize(torus.vertex(car_position[0], car_position[1] + 1) - torus.vertex(car_position[0], car_position[1]));
+
+            auto angle = acos(dot(new_z, torus_dir_x));
+            if (dot(new_z, torus_dir_y) > 0) {
+                angle = -angle;
+            }
+            auto landscape_rotation = glm::rotate(angle, new_x);
+//--------------------
+            auto rotation = glm::rotate(car_rotation - ALPHA, new_x);
+            auto car_translation = glm::translate(glm::vec3(model_torus * glm::vec4(torus.vertex(car_position), 1))
+                        - glm::vec3(model_car_basic * glm::vec4(car.center(), 1)));
+
+            auto model_car = car_translation * rotation * landscape_rotation * normal * model_car_basic;
+            auto mvp_car = projection * view * model_car;
+
+            car.shader->use();
+            car.shader->set_uniform("u_model", glm::value_ptr(model_car));
+            car.shader->set_uniform("u_mvp", glm::value_ptr(mvp_car));
+            car.Draw();
         }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
